@@ -1,6 +1,6 @@
 ---
 name: skill-evaluator
-description: Use when you need to evaluate, benchmark, audit, compare, or regression-test Claude Code skills. Supports rubric auto-scoring, bilingual prompts, before/after comparison, and enhanced batch statistics.
+description: Systematically evaluate skills with rubric auto-scoring, bilingual prompts, and batch statistics; when users need to evaluate, benchmark, audit, compare, or regression-test skills
 ---
 
 # Skill Evaluator v2
@@ -31,6 +31,8 @@ Every eval operates across four dimensions:
 | **Efficiency**  | Is it well-structured with no unnecessary complexity or missing coverage? | 25%    |
 
 ## Instructions
+
+> **Output directory**: All generated artifacts (reports, prompt CSVs, batch summaries) are written to `evals/artifacts/` in the **consumer's workspace** (the working directory where the evaluation is invoked), not inside the skill-evaluator's own directory.
 
 > **Tool calling**: The evaluation helper is in `scripts/eval_tool.py`. Before running checks, execute `exec(open("scripts/eval_tool.py").read())` to make all functions available.
 
@@ -107,7 +109,6 @@ results = run_all_deterministic_checks("<skill-name>")
 | `script-exists` | `scripts/call_tool.py` or `scripts/geo_tool.py` exists |
 | `script-valid-python` | Script parses as valid Python (no syntax errors) |
 | `script-has-invoke` | Script defines `_invoke_tool_http` function |
-| `script-api-url` | Script connects to the geo-runner API endpoint |
 
 **3.3 Reference Checks (if applicable):**
 
@@ -116,12 +117,11 @@ results = run_all_deterministic_checks("<skill-name>")
 | `reference-exists` | `references/reference.md` exists (if mentioned in SKILL.md) |
 | `reference-nonempty` | Reference file is non-empty |
 
-**3.4 Tool Connectivity Check:**
+**3.4 Tool Name Checks:**
 
 | Check ID | What it verifies |
 |----------|-----------------|
-| `api-reachable` | Geo-runner API at `http://10.200.49.56:9090` responds |
-| `tool-names-valid` | Tool function names found in SKILL.md are callable |
+| `tool-names-valid` | Tool function names found in SKILL.md are syntactically valid |
 
 ### Step 4: Auto-Score Rubric (V2 NEW)
 
@@ -397,10 +397,16 @@ All V1 functions remain available:
 | Problem | Solution |
 |---------|----------|
 | Target skill directory not found | Verify the skill name matches a directory under `.claude/skills/` |
-| API unreachable for connectivity check | Skip the check and note it in the report; do not fail the entire eval |
 | Script has syntax errors | Report the error details and mark `script-valid-python` as FAIL |
 | SKILL.md has no YAML front matter | Mark all frontmatter checks as FAIL; this is a critical issue |
 | Rubric scores seem off | Review the heuristic criteria in Step 4.1; adjust scoring thresholds if needed |
 | Bilingual prompts not generated | Check if SKILL.md contains CJK characters; use `generate_eval_prompts()` for English-only |
 | Comparison report shows no changes | Ensure both report files are valid and contain different results |
 | `auto_score_rubric` returns low scores | Check individual rubric check notes — low scores indicate specific improvement areas |
+
+## Resource Index
+
+| File | Purpose |
+|------|---------|
+| `scripts/eval_tool.py` | Core evaluation engine — deterministic checks, rubric auto-scoring, bilingual prompt generation, report generation, skill comparison, and enhanced batch summary |
+| `scripts/batch_fix.py` | Batch remediation script — auto-fixes common skill issues (When to Use, instructions, script invoke, parameter table, redundancy, scientific terminology, examples) |

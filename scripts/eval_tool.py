@@ -9,15 +9,12 @@ import os
 import ast
 import re
 import json
-import urllib.request
-import urllib.error
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 # ── Configuration ──────────────────────────────────────────────────────────
 
 SKILLS_BASE_DIR = os.path.join(".claude", "skills")
-GEO_RUNNER_API_URL = "http://10.200.49.56:9090"
 
 
 def _skill_dir(skill_name: str) -> str:
@@ -72,23 +69,6 @@ def _skill_requires_script(skill_name: str, md_text: str | None = None) -> bool:
         "exec(open('scripts/"
     ]
     return any(marker in md_text for marker in markers)
-
-
-def _skill_uses_geo_runner(skill_name: str, md_text: str | None = None) -> bool:
-    """Infer whether a skill operationally uses the geo-runner helper pattern."""
-    if md_text is None:
-        md_text = _read_skill_md(skill_name)
-    helper_markers = [
-        'scripts/call_tool.py',
-        'scripts/geo_tool.py',
-        'exec(open("scripts/call_tool.py")',
-        "exec(open('scripts/call_tool.py')",
-        'exec(open("scripts/geo_tool.py")',
-        "exec(open('scripts/geo_tool.py')"
-    ]
-    if any(marker in md_text for marker in helper_markers):
-        return True
-    return bool(re.search(r'_invoke_tool_http\(\s*["\']', md_text))
 
 
 # ── YAML Front Matter Parsing ─────────────────────────────────────────────
@@ -247,50 +227,19 @@ def check_script_valid_python(skill_name: str) -> Dict:
 
 
 def check_script_has_invoke(skill_name: str) -> Dict:
-    """Verify the script defines the _invoke_tool_http function when geo-runner helper pattern is used."""
+    """Verify the script defines the _invoke_tool_http function when a helper script is present."""
     script_path = _get_script_path(skill_name)
     if not script_path:
-        if _skill_uses_geo_runner(skill_name):
-            return {"check_id": "script-has-invoke", "pass": False,
-                    "details": "Skill references geo-runner helper pattern but no script file was found"}
         return {"check_id": "script-has-invoke", "pass": True,
-                "details": "Skill does not use geo-runner helper pattern"}
+                "details": "No helper script present; invoke check not applicable"}
     rel_path = script_path.replace(_skill_dir(skill_name) + os.sep, '')
     with open(script_path, 'r', encoding='utf-8') as f:
         source = f.read()
     if '_invoke_tool_http' in source:
         return {"check_id": "script-has-invoke", "pass": True,
                 "details": f"_invoke_tool_http defined in {rel_path}"}
-    if _skill_uses_geo_runner(skill_name):
-        return {"check_id": "script-has-invoke", "pass": False,
-                "details": f"_invoke_tool_http not found in {rel_path}"}
-    return {"check_id": "script-has-invoke", "pass": True,
-            "details": f"{rel_path} present and geo-runner helper not required"}
-
-
-def check_script_api_url(skill_name: str) -> Dict:
-    """Verify the script references the geo-runner API URL when geo-runner helper pattern is used."""
-    script_path = _get_script_path(skill_name)
-    if not script_path:
-        if _skill_uses_geo_runner(skill_name):
-            return {"check_id": "script-api-url", "pass": False,
-                    "details": "Skill uses geo-runner helper pattern but no script file was found"}
-        return {"check_id": "script-api-url", "pass": True,
-                "details": "Skill does not depend on geo-runner API script configuration"}
-    rel_path = script_path.replace(_skill_dir(skill_name) + os.sep, '')
-    with open(script_path, 'r', encoding='utf-8') as f:
-        source = f.read()
-    if GEO_RUNNER_API_URL in source:
-        return {"check_id": "script-api-url", "pass": True,
-                "details": f"References API at {GEO_RUNNER_API_URL}"}
-    if 'GEO_RUNNER_API_URL' in source or 'API_URL' in source:
-        return {"check_id": "script-api-url", "pass": True,
-                "details": f"{rel_path} uses configurable API URL variable"}
-    if _skill_uses_geo_runner(skill_name):
-        return {"check_id": "script-api-url", "pass": False,
-                "details": f"{rel_path} does not reference expected API URL ({GEO_RUNNER_API_URL})"}
-    return {"check_id": "script-api-url", "pass": True,
-            "details": f"{rel_path} present and explicit geo-runner API URL not required"}
+    return {"check_id": "script-has-invoke", "pass": False,
+            "details": f"_invoke_tool_http not found in {rel_path}"}
 
 
 
@@ -328,25 +277,6 @@ def check_reference_nonempty(skill_name: str) -> Dict:
                 "details": "reference.md is empty"}
     return {"check_id": "reference-nonempty", "pass": True,
             "details": "No reference.md (optional)"}
-
-
-def check_api_reachable(skill_name: str, md_text: str | None = None) -> Dict:
-    """Best-effort network reachability check for geo-runner API when the skill depends on it."""
-    if md_text is None:
-        md_text = _read_skill_md(skill_name)
-    if not _skill_uses_geo_runner(skill_name, md_text):
-        return {"check_id": "api-reachable", "pass": True,
-                "details": "Skill does not depend on geo-runner API reachability"}
-    try:
-        with urllib.request.urlopen(GEO_RUNNER_API_URL, timeout=3) as resp:
-            return {"check_id": "api-reachable", "pass": True,
-                    "details": f"Endpoint responded with HTTP {getattr(resp, 'status', 'unknown')}"}
-    except urllib.error.HTTPError as e:
-        return {"check_id": "api-reachable", "pass": True,
-                "details": f"Endpoint reachable and returned HTTP {e.code}"}
-    except Exception as e:
-        return {"check_id": "api-reachable", "pass": False,
-                "details": f"Geo-runner API not reachable: {e}"}
 
 
 def check_tool_names_valid(skill_name: str, md_text: str | None = None) -> Dict:
@@ -421,14 +351,12 @@ def run_all_deterministic_checks(skill_name: str) -> Dict:
     results["checks"].append(check_script_exists(skill_name))
     results["checks"].append(check_script_valid_python(skill_name))
     results["checks"].append(check_script_has_invoke(skill_name))
-    results["checks"].append(check_script_api_url(skill_name))
 
     # ── Reference Checks ──
     results["checks"].append(check_reference_exists(skill_name, md_text))
     results["checks"].append(check_reference_nonempty(skill_name))
 
-    # ── Connectivity / Tool Name Checks ──
-    results["checks"].append(check_api_reachable(skill_name, md_text))
+    # ── Tool Name Checks ──
     results["checks"].append(check_tool_names_valid(skill_name, md_text))
 
     # ── Summary ──
@@ -2070,11 +1998,11 @@ def generate_enhanced_batch_summary(results: List[Dict], output_dir: str = "eval
 
     issue_severity = {
         "frontmatter-name": "CRITICAL", "frontmatter-desc": "CRITICAL", "skill-md-exists": "CRITICAL",
-        "script-valid-python": "HIGH", "script-has-invoke": "HIGH", "script-api-url": "HIGH",
+        "script-valid-python": "HIGH", "script-has-invoke": "HIGH",
         "has-instructions": "MEDIUM", "has-when-to-use": "MEDIUM", "step-numbering": "MEDIUM",
         "parameter-table": "MEDIUM", "has-examples": "LOW", "has-troubleshooting": "LOW",
         "desc-keywords": "LOW", "reference-exists": "LOW", "reference-nonempty": "LOW",
-        "api-reachable": "INFO", "tool-names-valid": "MEDIUM",
+        "tool-names-valid": "MEDIUM",
     }
 
     issue_counts = {}
