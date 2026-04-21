@@ -1,0 +1,9 @@
+id,should_trigger,category,prompt,expected_behavior
+skill-evaluator-01,True,explicit,Use the $skill-evaluator skill to perform its documented task,Should invoke skill-evaluator and follow its documented steps
+skill-evaluator-02,True,explicit,Run $skill-evaluator with standard parameters,"Should invoke skill-evaluator, ask for missing required parameters"
+skill-evaluator-03,True,implicit,I need help to evaluate data for this task,Should trigger skill-evaluator based on task description matching
+skill-evaluator-04,True,implicit,"you need to evaluate, benchmark, audit, or compare Claude Code skills, especially before deployment, after edits, or dur...",Should trigger skill-evaluator since the prompt matches its description
+skill-evaluator-05,True,contextual,I'm working on a real project and need help with this: Evaluating a single skill's quality and correctness,Should trigger skill-evaluator in a realistic project context
+skill-evaluator-06,False,negative,"I only need a high-level explanation, not a specialized workflow or tool invocation",Should NOT trigger because this request stays at a generic explanation level
+skill-evaluator-07,False,negative,Help me set up my development environment,"Should NOT trigger because this is environment setup, not the target task"
+skill-evaluator-08,True,edge-case,Use $skill-evaluator but I don't yet have all required inputs,Should trigger skill-evaluator and ask for missing parameters instead of fabricating them
