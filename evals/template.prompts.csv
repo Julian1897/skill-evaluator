@@ -1,9 +1,0 @@
-id,should_trigger,category,prompt,expected_behavior
-test-01,true,explicit,"Use the $<skill-name> skill to perform its documented task","Should invoke the target skill and follow its documented steps"
-test-02,true,explicit,"Run $<skill-name> with standard parameters","Should invoke the target skill and ask for any missing required parameters"
-test-03,true,implicit,"<task description matching the skill's target scenario>","Should trigger based on the skill description without naming the skill"
-test-04,true,implicit,"<realistic user request in the same domain>","Should trigger because the scenario matches the intended use case"
-test-05,true,contextual,"I'm working on a geoscience project and need help with <domain task>","Should trigger in a noisy but relevant project context"
-test-06,false,negative,"<adjacent request that should not use this skill>","Should not trigger because this request is outside the skill boundary"
-test-07,false,negative,"Help me set up my Python environment","Should not trigger because this is environment setup, not the target task"
-test-08,true,edge-case,"Use $<skill-name> but I don't yet have all required inputs","Should trigger and ask for missing parameters instead of fabricating them"

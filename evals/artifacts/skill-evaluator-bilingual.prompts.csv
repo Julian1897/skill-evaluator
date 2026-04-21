@@ -1,9 +1,0 @@
-id,should_trigger,category,language,prompt,expected_behavior
-skill-evaluator-01,True,explicit,en,Use the skill-evaluator skill to process,Should invoke skill-evaluator and follow documented steps (EN)
-skill-evaluator-02,True,explicit,en,Run skill-evaluator with the standard workflow,Should invoke skill-evaluator and follow documented steps (EN)
-skill-evaluator-03,True,implicit,en,I need to process for my geoscience project,Should trigger skill-evaluator from implicit description (EN)
-skill-evaluator-04,True,implicit,en,Can you help me process? I have CSV data ready,Should trigger skill-evaluator from implicit description (EN)
-skill-evaluator-05,True,contextual,en,I'm doing a geological study and need to process. My data is in CSV format.,Should trigger skill-evaluator in realistic project context (EN)
-skill-evaluator-06,False,negative,en,"I just want to read about geological theory, not run any tools",Should NOT trigger skill-evaluator (EN)
-skill-evaluator-07,False,negative,en,Help me format my bibliography for a geological paper,Should NOT trigger skill-evaluator (EN)
-skill-evaluator-08,True,edge-case,en,Use skill-evaluator but my input file might have missing values,Should trigger skill-evaluator and handle edge case gracefully (EN)
